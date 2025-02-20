@@ -949,6 +949,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Status'
+  /api/v1/devicelabels:
+    get:
+      tags:
+        - device-labels
+      description: |
+        Retrieves a distinct list of device labels.
+      operationId: listDeviceLabels
+      parameters:
+        - name: labelSelector
+          in: query
+          description: A selector to restrict the list of returned objects by their labels. Defaults to everything.
+          schema:
+            type: string
+        - name: fieldSelector
+          in: query
+          description: A selector to restrict the list of returned objects by their fields, supporting operators like '=', '==', and '!=' (e.g., "key1=value1,key2!=value2").
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: The maximum number of distinct labels to return in the response.
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceLabelList'
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        "403":
+          description: Not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        "503":
+          description: ServiceUnavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
   /api/v1/devices/{name}:
     get:
       tags:

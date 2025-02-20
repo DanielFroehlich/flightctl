@@ -128,6 +128,57 @@ func (h *ServiceHandler) ListDevices(ctx context.Context, request server.ListDev
 	}
 }
 
+// (GET /api/v1/devicelabels)
+func (h *ServiceHandler) ListDeviceLabels(ctx context.Context, request server.ListDeviceLabelsRequestObject) (server.ListDeviceLabelsResponseObject, error) {
+	orgId := store.NullOrgId
+
+	var (
+		fieldSelector *selector.FieldSelector
+		labelSelector *selector.LabelSelector
+		err           error
+	)
+
+	if request.Params.FieldSelector != nil {
+		if fieldSelector, err = selector.NewFieldSelector(*request.Params.FieldSelector); err != nil {
+			return server.ListDeviceLabels400JSONResponse{Message: fmt.Sprintf("failed to parse field selector: %v", err)}, nil
+		}
+	}
+
+	if request.Params.LabelSelector != nil {
+		if labelSelector, err = selector.NewLabelSelector(*request.Params.LabelSelector); err != nil {
+			return server.ListDeviceLabels400JSONResponse{Message: fmt.Sprintf("failed to parse label selector: %v", err)}, nil
+		}
+	}
+
+	listParams := store.ListParams{
+		Limit:         int(swag.Int32Value(request.Params.Limit)),
+		FieldSelector: fieldSelector,
+		LabelSelector: labelSelector,
+	}
+	if listParams.Limit == 0 {
+		listParams.Limit = store.MaxRecordsPerListRequest
+	}
+	if listParams.Limit > store.MaxRecordsPerListRequest {
+		return server.ListDeviceLabels400JSONResponse{Message: fmt.Sprintf("limit cannot exceed %d", store.MaxRecordsPerListRequest)}, nil
+	}
+
+	result, err := h.store.Device().Labels(ctx, orgId, listParams)
+	if err == nil {
+		return server.ListDeviceLabels200JSONResponse(result), nil
+	}
+
+	var se *selector.SelectorError
+
+	switch {
+	case errors.Is(err, flterrors.ErrLimitParamOutOfBounds):
+		return server.ListDeviceLabels400JSONResponse{Message: err.Error()}, nil
+	case selector.AsSelectorError(err, &se):
+		return server.ListDeviceLabels400JSONResponse{Message: se.Error()}, nil
+	default:
+		return nil, err
+	}
+}
+
 // (DELETE /api/v1/devices)
 func (h *ServiceHandler) DeleteDevices(ctx context.Context, request server.DeleteDevicesRequestObject) (server.DeleteDevicesResponseObject, error) {
 	orgId := store.NullOrgId

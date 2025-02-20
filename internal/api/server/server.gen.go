@@ -48,6 +48,9 @@ type ServerInterface interface {
 	// (PUT /api/v1/certificatesigningrequests/{name}/approval)
 	UpdateCertificateSigningRequestApproval(w http.ResponseWriter, r *http.Request, name string)
 
+	// (GET /api/v1/devicelabels)
+	ListDeviceLabels(w http.ResponseWriter, r *http.Request, params ListDeviceLabelsParams)
+
 	// (DELETE /api/v1/devices)
 	DeleteDevices(w http.ResponseWriter, r *http.Request)
 
@@ -259,6 +262,11 @@ func (_ Unimplemented) ReplaceCertificateSigningRequest(w http.ResponseWriter, r
 
 // (PUT /api/v1/certificatesigningrequests/{name}/approval)
 func (_ Unimplemented) UpdateCertificateSigningRequestApproval(w http.ResponseWriter, r *http.Request, name string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /api/v1/devicelabels)
+func (_ Unimplemented) ListDeviceLabels(w http.ResponseWriter, r *http.Request, params ListDeviceLabelsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -795,6 +803,50 @@ func (siw *ServerInterfaceWrapper) UpdateCertificateSigningRequestApproval(w htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateCertificateSigningRequestApproval(w, r, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ListDeviceLabels operation middleware
+func (siw *ServerInterfaceWrapper) ListDeviceLabels(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDeviceLabelsParams
+
+	// ------------- Optional query parameter "labelSelector" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "labelSelector", r.URL.Query(), &params.LabelSelector)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelSelector", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "fieldSelector" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "fieldSelector", r.URL.Query(), &params.FieldSelector)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fieldSelector", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDeviceLabels(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2428,6 +2480,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/api/v1/certificatesigningrequests/{name}/approval", wrapper.UpdateCertificateSigningRequestApproval)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/devicelabels", wrapper.ListDeviceLabels)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/api/v1/devices", wrapper.DeleteDevices)
 	})
 	r.Group(func(r chi.Router) {
@@ -3138,6 +3193,59 @@ func (response UpdateCertificateSigningRequestApproval409JSONResponse) VisitUpda
 type UpdateCertificateSigningRequestApproval503JSONResponse Status
 
 func (response UpdateCertificateSigningRequestApproval503JSONResponse) VisitUpdateCertificateSigningRequestApprovalResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDeviceLabelsRequestObject struct {
+	Params ListDeviceLabelsParams
+}
+
+type ListDeviceLabelsResponseObject interface {
+	VisitListDeviceLabelsResponse(w http.ResponseWriter) error
+}
+
+type ListDeviceLabels200JSONResponse DeviceLabelList
+
+func (response ListDeviceLabels200JSONResponse) VisitListDeviceLabelsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDeviceLabels400JSONResponse Status
+
+func (response ListDeviceLabels400JSONResponse) VisitListDeviceLabelsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDeviceLabels401JSONResponse Status
+
+func (response ListDeviceLabels401JSONResponse) VisitListDeviceLabelsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDeviceLabels403JSONResponse Status
+
+func (response ListDeviceLabels403JSONResponse) VisitListDeviceLabelsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDeviceLabels503JSONResponse Status
+
+func (response ListDeviceLabels503JSONResponse) VisitListDeviceLabelsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(503)
 
@@ -6290,6 +6398,9 @@ type StrictServerInterface interface {
 	// (PUT /api/v1/certificatesigningrequests/{name}/approval)
 	UpdateCertificateSigningRequestApproval(ctx context.Context, request UpdateCertificateSigningRequestApprovalRequestObject) (UpdateCertificateSigningRequestApprovalResponseObject, error)
 
+	// (GET /api/v1/devicelabels)
+	ListDeviceLabels(ctx context.Context, request ListDeviceLabelsRequestObject) (ListDeviceLabelsResponseObject, error)
+
 	// (DELETE /api/v1/devices)
 	DeleteDevices(ctx context.Context, request DeleteDevicesRequestObject) (DeleteDevicesResponseObject, error)
 
@@ -6754,6 +6865,32 @@ func (sh *strictHandler) UpdateCertificateSigningRequestApproval(w http.Response
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateCertificateSigningRequestApprovalResponseObject); ok {
 		if err := validResponse.VisitUpdateCertificateSigningRequestApprovalResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListDeviceLabels operation middleware
+func (sh *strictHandler) ListDeviceLabels(w http.ResponseWriter, r *http.Request, params ListDeviceLabelsParams) {
+	var request ListDeviceLabelsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDeviceLabels(ctx, request.(ListDeviceLabelsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDeviceLabels")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListDeviceLabelsResponseObject); ok {
+		if err := validResponse.VisitListDeviceLabelsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
